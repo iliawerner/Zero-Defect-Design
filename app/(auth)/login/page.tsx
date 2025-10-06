@@ -7,13 +7,20 @@ import { useRouter, useSearchParams } from 'next/navigation';
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('designer@example.com');
-  const [password, setPassword] = useState('design123');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get('email') ?? '');
+    const password = String(formData.get('password') ?? '');
+
+    if (!email || !password) {
+      setError('Введите email и пароль.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -47,10 +54,12 @@ export default function LoginPage() {
             <label htmlFor="email">Email</label>
             <input
               id="email"
+              name="email"
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              defaultValue="designer@example.com"
               autoComplete="email"
+              inputMode="email"
+              disabled={loading}
               required
             />
           </div>
@@ -58,10 +67,11 @@ export default function LoginPage() {
             <label htmlFor="password">Пароль</label>
             <input
               id="password"
+              name="password"
               type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              defaultValue="design123"
               autoComplete="current-password"
+              disabled={loading}
               required
             />
           </div>
