@@ -42,8 +42,8 @@ async function makeGeminiRequest(contents: GeminiContent[], abortSignal?: AbortS
   return (await response.json()) as GeminiResponse;
 }
 
-export async function callGemini(prompt: string, context: Record<string, unknown>) {
-  const contextString = JSON.stringify(context, null, 2);
+export async function callGemini(prompt: string, context: unknown) {
+  const contextString = JSON.stringify(context ?? {}, null, 2);
   const contents: GeminiContent[] = [
     {
       role: 'user',
