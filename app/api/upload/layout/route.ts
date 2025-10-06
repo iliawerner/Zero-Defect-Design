@@ -7,7 +7,16 @@ export async function POST(request: Request) {
   const { searchParams } = new URL(request.url);
   const filename = searchParams.get('filename') ?? `layout-${Date.now()}`;
 
-  const blob = await put(`layouts/${filename}`, request.body, {
+  const body = request.body;
+
+  if (!body) {
+    return NextResponse.json(
+      { error: 'Missing file body in upload request' },
+      { status: 400 },
+    );
+  }
+
+  const blob = await put(`layouts/${filename}`, body, {
     access: 'public',
   });
 
