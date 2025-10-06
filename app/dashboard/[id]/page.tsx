@@ -1,4 +1,4 @@
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { notFound, redirect } from 'next/navigation';
 import { Header } from '../../../components/Header';
 import { authOptions } from '../../../lib/auth-options';

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import './globals.css';
 import { authOptions } from '../lib/auth-options';
 import { ReactNode } from 'react';
