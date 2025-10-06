@@ -39,4 +39,4 @@
 - Промпты для этапов оценки вынесены в `lib/evaluation.ts` как placeholders `[[PROMPT_*]]` и должны быть заполнены.
 - Для корректной работы Vercel Blob требуется активированная базa данных Blob в проекте Vercel.
 - Серверные роуты используют Node.js runtime (по умолчанию в Next.js) и требуют Node.js 18+ с поддержкой `fetch`.
-- Файл `vercel.json` настраивает build command (`npm run build`) и Output Directory `.vercel/output`, поэтому не требуется ручная правка настроек проекта на Vercel.
+- Файл `vercel.json` фиксирует команду сборки (`npm run build`), сохраняя остальную конфигурацию по умолчанию Vercel для Next.js.
