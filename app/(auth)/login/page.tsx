@@ -24,20 +24,29 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const result = await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
 
-    setLoading(false);
+      if (!result || result.error || result.ok === false) {
+        const message =
+          result?.error === 'CredentialsSignin'
+            ? 'Неверный email или пароль. Попробуйте снова.'
+            : 'Не удалось войти. Попробуйте ещё раз чуть позже.';
+        setError(message);
+        return;
+      }
 
-    if (result?.error) {
-      setError('Не удалось войти. Проверьте email и пароль.');
-      return;
+      router.push(result.url ?? '/dashboard');
+    } catch (err) {
+      console.error('Ошибка авторизации', err);
+      setError('Произошла неожиданная ошибка. Попробуйте ещё раз.');
+    } finally {
+      setLoading(false);
     }
-
-    router.push('/dashboard');
   };
 
   const authError = searchParams?.get('error');
@@ -76,8 +85,13 @@ export default function LoginPage() {
             />
           </div>
           {(error || authError) && (
-            <div className="badge danger" role="alert" style={{ justifyContent: 'center' }}>
-              {error || 'Не удалось войти. Проверьте email и пароль.'}
+            <div
+              className="badge danger"
+              role="alert"
+              aria-live="assertive"
+              style={{ justifyContent: 'center' }}
+            >
+              {error || 'Неверный email или пароль. Попробуйте снова.'}
             </div>
           )}
           <button className="button" type="submit" disabled={loading}>
