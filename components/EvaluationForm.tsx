@@ -1,15 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { z } from 'zod';
-
-const evaluationSchema = z.object({
-  projectTitle: z.string().min(3, 'Минимум 3 символа'),
-  projectBrief: z.string().min(20, 'Опишите бизнес-задачу подробнее'),
-  structureJson: z.string().min(10, 'Вставьте JSON структуру макета'),
-  designSystemUrl: z.string().url('Сначала загрузите дизайн-систему'),
-  layoutImageUrl: z.string().url('Загрузите макет'),
-});
+import { FormEvent, useState } from 'react';
 
 interface ToastState {
   message: string;
@@ -26,21 +17,6 @@ export function EvaluationForm() {
   const [needsGoalConfirmation, setNeedsGoalConfirmation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
-
-  const isReadyToSubmit = useMemo(() => {
-    try {
-      evaluationSchema.parse({
-        projectTitle,
-        projectBrief,
-        structureJson,
-        designSystemUrl,
-        layoutImageUrl,
-      });
-      return true;
-    } catch {
-      return false;
-    }
-  }, [projectTitle, projectBrief, structureJson, designSystemUrl, layoutImageUrl]);
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>, type: 'design-system' | 'layout') => {
     event.preventDefault();
@@ -176,10 +152,10 @@ export function EvaluationForm() {
           <div>
             <h3 style={{ margin: '0 0 4px' }}>Дизайн-система</h3>
             <p style={{ margin: 0, color: 'rgba(15,23,42,0.6)', fontSize: '0.9rem' }}>
-              Загрузите файл .md, .txt, .pdf или .doc. Он будет использован в качестве контекста.
+              Загрузите файл .md, .txt, .pdf или .doc, если он есть. Это поле опционально.
             </p>
           </div>
-          <input name="file" type="file" accept=".md,.txt,.pdf,.doc,.docx" required />
+          <input name="file" type="file" accept=".md,.txt,.pdf,.doc,.docx" />
           <button className="button secondary" type="submit">
             {designSystemUrl ? 'Заменить дизайн-систему' : 'Загрузить дизайн-систему'}
           </button>
@@ -194,10 +170,10 @@ export function EvaluationForm() {
           <div>
             <h3 style={{ margin: '0 0 4px' }}>Макет</h3>
             <p style={{ margin: 0, color: 'rgba(15,23,42,0.6)', fontSize: '0.9rem' }}>
-              Прикрепите изображение макета (JPEG, PNG, WEBP).
+              Прикрепите изображение макета (JPEG, PNG, WEBP), можно пропустить на этапе тестирования.
             </p>
           </div>
-          <input name="file" type="file" accept="image/jpeg,image/png,image/webp" required />
+          <input name="file" type="file" accept="image/jpeg,image/png,image/webp" />
           <button className="button secondary" type="submit">
             {layoutImageUrl ? 'Заменить макет' : 'Загрузить макет'}
           </button>
@@ -216,7 +192,6 @@ export function EvaluationForm() {
             value={projectTitle}
             onChange={(event) => setProjectTitle(event.target.value)}
             placeholder="Например, Лендинг Zero Defect Design"
-            required
           />
         </div>
         <div>
@@ -225,8 +200,7 @@ export function EvaluationForm() {
             id="projectBrief"
             value={projectBrief}
             onChange={(event) => setProjectBrief(event.target.value)}
-            placeholder="Опишите, что должно решать этот макет."
-            required
+            placeholder="Опишите, что должно решать этот макет. Поле можно оставить пустым."
           />
         </div>
         <div>
@@ -235,8 +209,7 @@ export function EvaluationForm() {
             id="structureJson"
             value={structureJson}
             onChange={(event) => setStructureJson(event.target.value)}
-            placeholder='{"screens": [...], "components": [...]}'
-            required
+            placeholder='{"screens": [...], "components": [...]} (можно без JSON)'
           />
         </div>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
@@ -247,7 +220,10 @@ export function EvaluationForm() {
             Макет {layoutImageUrl ? 'загружен' : 'не загружен'}
           </span>
         </div>
-        <button className="button" type="submit" disabled={!isReadyToSubmit || isSubmitting}>
+        <p style={{ margin: 0, color: 'rgba(15,23,42,0.65)', fontSize: '0.85rem' }}>
+          Все поля можно заполнить частично или оставить пустыми — это удобно для демонстрации.
+        </p>
+        <button className="button" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Запускаем оценку...' : 'Запустить оценку'}
         </button>
       </form>

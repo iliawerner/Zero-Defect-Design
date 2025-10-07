@@ -16,6 +16,16 @@ export interface ValidationResult {
 }
 
 export async function validateInputs(request: EvaluationRequest): Promise<ValidationResult> {
+  const hasLayoutReference = request.layoutImageUrl.trim().length > 0;
+  const hasStructure = request.structureJson.trim().length > 0;
+
+  if (!hasLayoutReference || !hasStructure) {
+    return {
+      jsonMatchesImage: true,
+      needsBusinessGoalConfirmation: false,
+    };
+  }
+
   const jsonCheck = await callGemini(PROMPT_VALIDATE_JSON, {
     structureJson: request.structureJson,
     layoutImageUrl: request.layoutImageUrl,
@@ -26,6 +36,14 @@ export async function validateInputs(request: EvaluationRequest): Promise<Valida
   if (!matches) {
     return {
       jsonMatchesImage: false,
+      needsBusinessGoalConfirmation: false,
+    };
+  }
+
+  const briefText = request.projectBrief.trim();
+  if (!briefText) {
+    return {
+      jsonMatchesImage: true,
       needsBusinessGoalConfirmation: false,
     };
   }
@@ -49,17 +67,34 @@ export async function validateInputs(request: EvaluationRequest): Promise<Valida
 export async function runEvaluation(request: EvaluationRequest) {
   const steps: StepResult[] = [];
 
-  const layoutOverview = await callGemini(PROMPT_LAYOUT_OVERVIEW, request);
-  steps.push({ step: 'layoutOverview', content: layoutOverview });
+  const hasVisualContext = request.layoutImageUrl.trim().length > 0 || request.structureJson.trim().length > 0;
 
-  const designQuality = await callGemini(PROMPT_DESIGN_QUALITY, request);
-  steps.push({ step: 'designQuality', content: designQuality });
+  if (hasVisualContext) {
+    const layoutOverview = await callGemini(PROMPT_LAYOUT_OVERVIEW, request);
+    steps.push({ step: 'layoutOverview', content: layoutOverview });
 
-  const accessibility = await callGemini(PROMPT_ACCESSIBILITY, request);
-  steps.push({ step: 'accessibility', content: accessibility });
+    const designQuality = await callGemini(PROMPT_DESIGN_QUALITY, request);
+    steps.push({ step: 'designQuality', content: designQuality });
 
-  const designSystem = await callGemini(PROMPT_DESIGN_SYSTEM, request);
-  steps.push({ step: 'designSystem', content: designSystem });
+    const accessibility = await callGemini(PROMPT_ACCESSIBILITY, request);
+    steps.push({ step: 'accessibility', content: accessibility });
+  } else {
+    const placeholder =
+      'Недостаточно данных макета (JSON или изображение не загружены), поэтому автоматическая оценка пропущена.';
+    steps.push({ step: 'layoutOverview', content: placeholder });
+    steps.push({ step: 'designQuality', content: placeholder });
+    steps.push({ step: 'accessibility', content: placeholder });
+  }
+
+  if (request.designSystemUrl.trim().length > 0) {
+    const designSystem = await callGemini(PROMPT_DESIGN_SYSTEM, request);
+    steps.push({ step: 'designSystem', content: designSystem });
+  } else {
+    steps.push({
+      step: 'designSystem',
+      content: 'Дизайн-система не предоставлена, оценка этого пункта пропущена.',
+    });
+  }
 
   const finalReport = await callGemini(PROMPT_FINAL_REPORT, {
     ...request,
@@ -72,9 +107,10 @@ export async function runEvaluation(request: EvaluationRequest) {
 
 export function buildSummary(steps: StepResult[], request: EvaluationRequest): EvaluationResult['summary'] {
   const createdAt = new Date().toISOString();
+  const normalizedTitle = request.projectTitle.trim();
   return {
     id: `${Date.now()}`,
-    title: request.projectTitle || 'Оценка макета',
+    title: normalizedTitle || 'Оценка макета',
     status: 'complete',
     projectSummary: request.projectBrief.trim().slice(0, 160),
     createdAt,

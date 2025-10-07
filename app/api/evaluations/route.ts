@@ -4,12 +4,22 @@ import { buildSummary, runEvaluation, validateInputs } from '../../../lib/evalua
 import { saveEvaluation, listEvaluations } from '../../../lib/storage';
 import type { EvaluationRequest, EvaluationResult } from '../../../lib/types';
 
+const optionalText = z.preprocess(
+  (value) => (typeof value === 'string' ? value : ''),
+  z.string(),
+);
+
+const optionalUrl = z.preprocess(
+  (value) => (typeof value === 'string' ? value.trim() : ''),
+  z.union([z.literal(''), z.string().url()]),
+);
+
 const requestSchema = z.object({
-  projectTitle: z.string().min(3),
-  projectBrief: z.string().min(20),
-  structureJson: z.string().min(10),
-  designSystemUrl: z.string().url(),
-  layoutImageUrl: z.string().url(),
+  projectTitle: optionalText,
+  projectBrief: optionalText,
+  structureJson: optionalText,
+  designSystemUrl: optionalUrl,
+  layoutImageUrl: optionalUrl,
 });
 
 export async function GET() {
@@ -30,6 +40,11 @@ export async function POST(request: Request) {
   try {
     const json = await request.json();
     payload = requestSchema.parse(json);
+    payload = {
+      ...payload,
+      projectTitle: payload.projectTitle.trim(),
+      projectBrief: payload.projectBrief.trim(),
+    };
   } catch (error) {
     console.error(error);
     return NextResponse.json({ message: 'Некорректные данные' }, { status: 400 });
