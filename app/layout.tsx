@@ -1,9 +1,6 @@
 import type { Metadata } from 'next';
-import { getServerSession } from 'next-auth/next';
 import './globals.css';
-import { authOptions } from '../lib/auth-options';
-import { ReactNode } from 'react';
-import { Providers } from '../components/Providers';
+import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
   title: 'Zero Defect Design Assistant',
@@ -11,14 +8,10 @@ export const metadata: Metadata = {
     'AI-помощник для оценки макетов: общее качество, доступность, дизайн-системы и соответствие бизнес-целям.',
 };
 
-async function RootLayout({ children }: { children: ReactNode }) {
-  const session = await getServerSession(authOptions);
-
+function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">
-      <body>
-        <Providers session={session}>{children}</Providers>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

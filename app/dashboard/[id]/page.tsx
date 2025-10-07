@@ -1,18 +1,10 @@
-import { getServerSession } from 'next-auth/next';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { Header } from '../../../components/Header';
-import { authOptions } from '../../../lib/auth-options';
 import { getEvaluation } from '../../../lib/storage';
 import type { EvaluationResult } from '../../../lib/types';
 
 export default async function EvaluationDetailsPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.email) {
-    redirect('/login');
-  }
-
-  const evaluation = await getEvaluation(session.user.email, params.id);
+  const evaluation = await getEvaluation(params.id);
 
   if (!evaluation) {
     notFound();

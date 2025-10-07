@@ -1,16 +1,10 @@
 import { list, put } from '@vercel/blob';
 import type { EvaluationResult, EvaluationSummary } from './types';
 
-const EVALUATIONS_PREFIX = 'users';
+const EVALUATIONS_PREFIX = 'evaluations/';
 
-function emailToPrefix(email: string) {
-  const safeEmail = email.replace(/[^a-zA-Z0-9@._-]/g, '_');
-  return `${EVALUATIONS_PREFIX}/${safeEmail}/evaluations/`;
-}
-
-export async function listEvaluations(email: string): Promise<EvaluationSummary[]> {
-  const prefix = emailToPrefix(email);
-  const blobs = await list({ prefix });
+export async function listEvaluations(): Promise<EvaluationSummary[]> {
+  const blobs = await list({ prefix: EVALUATIONS_PREFIX });
 
   const evaluations = await Promise.all(
     blobs.blobs.map(async (blob) => {
@@ -26,18 +20,16 @@ export async function listEvaluations(email: string): Promise<EvaluationSummary[
   return evaluations.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
-export async function saveEvaluation(email: string, evaluation: EvaluationResult) {
-  const prefix = emailToPrefix(email);
-  const key = `${prefix}${evaluation.summary.id}.json`;
+export async function saveEvaluation(evaluation: EvaluationResult) {
+  const key = `${EVALUATIONS_PREFIX}${evaluation.summary.id}.json`;
   await put(key, JSON.stringify(evaluation, null, 2), {
     access: 'public',
     contentType: 'application/json',
   });
 }
 
-export async function getEvaluation(email: string, id: string) {
-  const prefix = emailToPrefix(email);
-  const blobs = await list({ prefix: `${prefix}${id}` });
+export async function getEvaluation(id: string) {
+  const blobs = await list({ prefix: `${EVALUATIONS_PREFIX}${id}` });
   const target = blobs.blobs.find((blob) => blob.pathname.endsWith(`${id}.json`));
   if (!target) {
     return null;

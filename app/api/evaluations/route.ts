@@ -1,7 +1,5 @@
-import { getServerSession } from 'next-auth/next';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { authOptions } from '../../../lib/auth-options';
 import { buildSummary, runEvaluation, validateInputs } from '../../../lib/evaluation';
 import { saveEvaluation, listEvaluations } from '../../../lib/storage';
 import type { EvaluationRequest, EvaluationResult } from '../../../lib/types';
@@ -15,13 +13,8 @@ const requestSchema = z.object({
 });
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ message: 'Требуется авторизация' }, { status: 401 });
-  }
-
   try {
-    const summaries = await listEvaluations(session.user.email);
+    const summaries = await listEvaluations();
     return NextResponse.json(summaries);
   } catch (error) {
     console.error(error);
@@ -30,11 +23,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ message: 'Требуется авторизация' }, { status: 401 });
-  }
-
   const url = new URL(request.url);
   const confirmGoal = url.searchParams.has('confirmGoal');
 
@@ -72,7 +60,7 @@ export async function POST(request: Request) {
       steps,
     };
 
-    await saveEvaluation(session.user.email, evaluation);
+    await saveEvaluation(evaluation);
 
     return NextResponse.json(evaluation, { status: 201 });
   } catch (error) {

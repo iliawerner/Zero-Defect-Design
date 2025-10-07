@@ -1,17 +1,8 @@
-import { getServerSession } from 'next-auth/next';
-import { redirect } from 'next/navigation';
 import { Header } from '../../components/Header';
 import { ChatList } from '../../components/ChatList';
-import { authOptions } from '../../lib/auth-options';
 import { EvaluationForm } from '../../components/EvaluationForm';
 
-export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
-
-  if (!session) {
-    redirect('/login');
-  }
-
+export default function DashboardPage() {
   return (
     <>
       <Header />
