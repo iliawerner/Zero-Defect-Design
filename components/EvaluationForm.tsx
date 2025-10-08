@@ -58,7 +58,17 @@ export function EvaluationForm() {
       });
 
       if (!response.ok) {
-        throw new Error('Ошибка при отправке макета на оценку.');
+        let message = 'Ошибка при отправке макета на оценку.';
+        try {
+          const data = (await response.json()) as { message?: string };
+          if (data?.message) {
+            message = data.message;
+          }
+        } catch (parseError) {
+          console.error('Не удалось разобрать сообщение об ошибке отправки оценки', parseError);
+        }
+
+        throw new Error(message);
       }
 
       setToast({ message: 'Оценка запущена. Проверьте историю через минуту.', tone: 'success' });

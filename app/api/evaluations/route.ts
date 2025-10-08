@@ -22,6 +22,57 @@ export async function GET() {
   }
 }
 
+function mapErrorToResponse(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message.includes('Zero_Defect_Gemini')) {
+      return {
+        status: 503,
+        message:
+          'Интеграция Gemini не настроена. Убедитесь, что переменная окружения Zero_Defect_Gemini задана.',
+      };
+    }
+
+    if (error.message.includes('Gemini API вернул ошибку')) {
+      return {
+        status: 502,
+        message: 'Gemini вернул ошибку. Проверьте ключ и доступность сервиса.',
+      };
+    }
+
+    if (error.message.includes('VERCEL_BLOB')) {
+      return {
+        status: 503,
+        message:
+          'Хранилище Vercel Blob недоступно. Проверьте VERCEL_BLOB_TOKEN и настройки доступа.',
+      };
+    }
+
+    if (error.message.includes('Не удалось сохранить файл оценки')) {
+      return {
+        status: 503,
+        message: 'Не удалось сохранить результат оценки. Проверьте настройки хранилища.',
+      };
+    }
+
+    if (error.message.includes('Не удалось загрузить изображение макета')) {
+      return {
+        status: 400,
+        message: error.message,
+      };
+    }
+
+    return {
+      status: 500,
+      message: error.message || 'Ошибка при обработке оценки',
+    };
+  }
+
+  return {
+    status: 500,
+    message: 'Ошибка при обработке оценки',
+  };
+}
+
 export async function POST(request: Request) {
   let payload: EvaluationRequest;
   try {
@@ -50,6 +101,7 @@ export async function POST(request: Request) {
     return NextResponse.json(evaluation, { status: 201 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ message: 'Ошибка при обработке оценки' }, { status: 500 });
+    const { status, message } = mapErrorToResponse(error);
+    return NextResponse.json({ message }, { status });
   }
 }
