@@ -21,9 +21,6 @@ export interface EvaluationSummary {
 
 export interface EvaluationRequest {
   projectTitle: string;
-  projectBrief: string;
-  structureJson: string;
-  designSystemUrl: string;
   layoutImageUrl: string;
 }
 

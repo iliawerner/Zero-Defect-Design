@@ -1,130 +1,90 @@
 import { callGemini } from './gemini';
 import type { EvaluationRequest, EvaluationResult, StepResult } from './types';
 
-const PROMPT_LAYOUT_OVERVIEW = '[[PROMPT_LAYOUT_OVERVIEW]]';
-const PROMPT_DESIGN_QUALITY = '[[PROMPT_DESIGN_QUALITY]]';
-const PROMPT_ACCESSIBILITY = '[[PROMPT_ACCESSIBILITY]]';
-const PROMPT_DESIGN_SYSTEM = '[[PROMPT_DESIGN_SYSTEM]]';
-const PROMPT_FINAL_REPORT = '[[PROMPT_FINAL_REPORT]]';
-const PROMPT_VALIDATE_JSON = '[[PROMPT_VALIDATE_JSON]]';
-const PROMPT_VALIDATE_BRIEF = '[[PROMPT_VALIDATE_BRIEF]]';
+const PROMPT_COMPREHENSIVE_REVIEW = String.raw`<CONTEXT>
+Наша цель — провести максимально детальный и конкретный анализ макета, как в самом первом варианте, но изложить его выводы в понятной и структурированной манере, которую мы наработали позже.
+</CONTEXT>
 
-export interface ValidationResult {
-  jsonMatchesImage: boolean;
-  businessGoal?: string;
-  needsBusinessGoalConfirmation: boolean;
-}
+<TASK>
+Твоя текущая задача — **Комплексная оценка дизайна (детальный разбор)**.
 
-export async function validateInputs(request: EvaluationRequest): Promise<ValidationResult> {
-  const hasLayoutReference = request.layoutImageUrl.trim().length > 0;
-  const hasStructure = request.structureJson.trim().length > 0;
+Проведи системный и исчерпывающий анализ макета по всем перечисленным ниже критериям. Твоя задача — не пропускать ни одного пункта, а дать по каждому из них конкретную оценку, подкрепленную данными из макета.
+</TASK>
 
-  if (!hasLayoutReference || !hasStructure) {
-    return {
-      jsonMatchesImage: true,
-      needsBusinessGoalConfirmation: false,
-    };
-  }
+<TONE_AND_STYLE_GUIDELINES>
+1.  **Человекочитаемые ссылки:** Это правило сохраняется. **Всегда** сначала описывай элемент словами (что это и где находится), и только потом в скобках можно указать ID для справки.
+    * **Пример:** "У кнопки 'Добавить в корзину' (E2.5) в блоке с ценой (B3)..."
 
-  const jsonCheck = await callGemini(PROMPT_VALIDATE_JSON, {
-    structureJson: request.structureJson,
-    layoutImageUrl: request.layoutImageUrl,
-  });
+2.  **Опора на данные:** Подкрепляй каждое наблюдение конкретными значениями из макета (например, \`размер шрифта: 15px\`, \`lineHeight: 22\`, \`цвет: #000000\`, \`отступ: 28px\`). Это возвращает анализу необходимую конкретику.
 
-  const matches = /\b(да|yes|true)\b/i.test(jsonCheck);
+3.  **Сухой и предметный тон:** Говори как опытный арт-директор — уважительно, но по делу и без "воды". **Сосредоточься на поиске ошибок и недочетов.** Твоя задача — найти проблемы, а не хвалить дизайнера. Объясняй, *почему* тот или иной аспект важен с точки зрения UX.
+</TONE_AND_STYLE_GUIDELINES>
 
-  if (!matches) {
-    return {
-      jsonMatchesImage: false,
-      needsBusinessGoalConfirmation: false,
-    };
-  }
+<INSTRUCTIONS>
+Системно проанализируй макет по **ВСЕМ** подпунктам в категориях ниже, выявляя проблемы и потенциальные улучшения. Не выбирай 1-2 примера, а методично проходи по всему списку. Если с каким-то пунктом проблем не найдено, не включай его в отчет.
 
-  const briefText = request.projectBrief.trim();
-  if (!briefText) {
-    return {
-      jsonMatchesImage: true,
-      needsBusinessGoalConfirmation: false,
-    };
-  }
+**Категории и критерии для обязательного анализа:** **0. Соответствие дизайн-задаче**
+   * Проанализируй, насколько текущий дизайн эффективно решает задачу, определенную на Шаге 1.
+   * Выяви элементы или композиционные решения, которые могут мешать пользователю в достижении цели (например, отвлекающие визуальные элементы, нелогичное расположение CTA, недостаток ключевой информации).
 
-  const briefCheck = await callGemini(PROMPT_VALIDATE_BRIEF, {
-    projectBrief: request.projectBrief,
-    structureJson: request.structureJson,
-  });
+**1.  Типографика:**
+   * Читаемость основного текста (размер, интервалы).
+   * Контраст текста и фона (оценка по WCAG).
+   * Иерархия текстовых стилей (как заголовки отличаются от подзаголовков и текста, используя названия стилей из карты макета).
+   * Межстрочные и межбуквенные интервалы.
 
-  const goalMatch = briefCheck.match(/goal:(.*)/i);
-  const goalText = (goalMatch ? goalMatch[1].trim() : briefCheck.trim()) || request.projectBrief;
-  const confident = /\b(уверен|понятно|clear|definite)\b/i.test(briefCheck);
+**2.  Композиция и принцип близости:**
+   * Группировка связанных по смыслу элементов.
+   * Использование отступов для создания визуальных групп и "воздуха".
+   * Баланс между плотностью информации и пустым пространством.
 
-  return {
-    jsonMatchesImage: true,
-    businessGoal: goalText,
-    needsBusinessGoalConfirmation: !confident,
-  };
-}
+**3.  Визуальная иерархия:**
+   * Общая визуальная иерархия всего макета (что пользователь видит в первую, вторую, третью очередь).
+   * Приоритизация информации внутри каждого отдельного блока.
+   * Использование визуальных акцентов (цвет, размер, жирность) для выделения важного.
+
+**4.  Эстетика и консистентность:**
+   * Общее визуальное впечатление и согласованность стилей.
+   * Цветовая гармония и использование палитры.
+
+**Для каждого проанализированного подпункта используй следующий формат:** </INSTRUCTIONS>
+
+<OUTPUT_FORMAT>
+---
+**0. Соответствие дизайн-задаче**
+
+* **Наблюдение:** (Детальный анализ того, как макет решает (или не решает) поставленную задачу. Например: "Основная задача — быстрая покупка товара. Однако, кнопка 'Добавить в корзину' (E2.5) имеет недостаточный визуальный вес по сравнению с блоком 'Рекомендованные товары' (B4), что может отвлекать пользователя от целевого действия.")
+* **Рекомендация:** (Что нужно сделать для лучшего решения задачи. Например: "Рекомендую усилить акцент на кнопке (E2.5), возможно, используя более контрастный цвет из палитры Primary, и уменьшить визуальный вес блока B4.")
+* **Критичность:** (Высокая)
+
+---
+**1. Типографика** **1.2. Контраст текста и фона**
+* **Наблюдение:** (Анализ контраста. Например: "Второстепенный текст в блоке адреса (E4.3) имеет серый цвет (r:0.458), что на светло-сером фоне может не соответствовать минимальному уровню контраста WCAG AA. Это ухудшает доступность...")
+* **Рекомендация:** (Например: "Рекомендую проверить данный цвет через контраст-чекер и, при необходимости, сделать его темнее, используя токен \`content/secondary\` из дизайн-системы.")
+* **Критичность:** (Низкая)
+
+*(... и так далее по всем пунктам и подпунктам, где найдены проблемы)* </OUTPUT_FORMAT>`;
 
 export async function runEvaluation(request: EvaluationRequest) {
-  const steps: StepResult[] = [];
-
-  const hasVisualContext = request.layoutImageUrl.trim().length > 0 || request.structureJson.trim().length > 0;
-
-  if (hasVisualContext) {
-    const layoutOverview = await callGemini(PROMPT_LAYOUT_OVERVIEW, request);
-    steps.push({ step: 'layoutOverview', content: layoutOverview });
-
-    const designQuality = await callGemini(PROMPT_DESIGN_QUALITY, request);
-    steps.push({ step: 'designQuality', content: designQuality });
-
-    const accessibility = await callGemini(PROMPT_ACCESSIBILITY, request);
-    steps.push({ step: 'accessibility', content: accessibility });
-  } else {
-    const placeholder =
-      'Недостаточно данных макета (JSON или изображение не загружены), поэтому автоматическая оценка пропущена.';
-    steps.push({ step: 'layoutOverview', content: placeholder });
-    steps.push({ step: 'designQuality', content: placeholder });
-    steps.push({ step: 'accessibility', content: placeholder });
-  }
-
-  if (request.designSystemUrl.trim().length > 0) {
-    const designSystem = await callGemini(PROMPT_DESIGN_SYSTEM, request);
-    steps.push({ step: 'designSystem', content: designSystem });
-  } else {
-    steps.push({
-      step: 'designSystem',
-      content: 'Дизайн-система не предоставлена, оценка этого пункта пропущена.',
-    });
-  }
-
-  const finalReport = await callGemini(PROMPT_FINAL_REPORT, {
-    ...request,
-    steps,
+  const analysis = await callGemini(PROMPT_COMPREHENSIVE_REVIEW, {
+    layoutImageUrl: request.layoutImageUrl,
+    projectTitle: request.projectTitle,
   });
-  steps.push({ step: 'finalReport', content: finalReport });
 
+  const steps: StepResult[] = [{ step: 'finalReport', content: analysis }];
   return steps;
 }
 
 export function buildSummary(steps: StepResult[], request: EvaluationRequest): EvaluationResult['summary'] {
   const createdAt = new Date().toISOString();
   const normalizedTitle = request.projectTitle.trim();
+
   return {
     id: `${Date.now()}`,
     title: normalizedTitle || 'Оценка макета',
     status: 'complete',
-    projectSummary: request.projectBrief.trim().slice(0, 160),
+    projectSummary: 'Детальный отчёт по загруженному макету.',
     createdAt,
-    scores: [
-      { label: 'Обзор', value: extractScore(steps, 'layoutOverview') },
-      { label: 'Качество', value: extractScore(steps, 'designQuality') },
-      { label: 'Доступность', value: extractScore(steps, 'accessibility') },
-      { label: 'Дизайн-система', value: extractScore(steps, 'designSystem') },
-    ],
+    scores: [],
   };
-}
-
-function extractScore(steps: StepResult[], key: StepResult['step']) {
-  const text = steps.find((step) => step.step === key)?.content ?? '';
-  const match = text.match(/score\s*[:=]\s*(\d{1,2}\/?10)/i);
-  return match ? match[1] : 'n/a';
 }
