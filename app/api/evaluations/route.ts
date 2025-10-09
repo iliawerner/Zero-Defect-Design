@@ -1,25 +1,15 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { buildSummary, runEvaluation, validateInputs } from '../../../lib/evaluation';
+import { buildSummary, runEvaluation } from '../../../lib/evaluation';
 import { saveEvaluation, listEvaluations } from '../../../lib/storage';
 import type { EvaluationRequest, EvaluationResult } from '../../../lib/types';
 
-const optionalText = z.preprocess(
-  (value) => (typeof value === 'string' ? value : ''),
-  z.string(),
-);
-
-const optionalUrl = z.preprocess(
-  (value) => (typeof value === 'string' ? value.trim() : ''),
-  z.union([z.literal(''), z.string().url()]),
-);
-
 const requestSchema = z.object({
-  projectTitle: optionalText,
-  projectBrief: optionalText,
-  structureJson: optionalText,
-  designSystemUrl: optionalUrl,
-  layoutImageUrl: optionalUrl,
+  projectTitle: z.preprocess((value) => (typeof value === 'string' ? value : ''), z.string()),
+  layoutImageUrl: z.preprocess(
+    (value) => (typeof value === 'string' ? value.trim() : ''),
+    z.string().url(),
+  ),
 });
 
 export async function GET() {
@@ -32,18 +22,65 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
-  const url = new URL(request.url);
-  const confirmGoal = url.searchParams.has('confirmGoal');
+function mapErrorToResponse(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message.includes('Zero_Defect_Gemini')) {
+      return {
+        status: 503,
+        message:
+          'Интеграция Gemini не настроена. Убедитесь, что переменная окружения Zero_Defect_Gemini задана.',
+      };
+    }
 
+    if (error.message.includes('Gemini API вернул ошибку')) {
+      return {
+        status: 502,
+        message: 'Gemini вернул ошибку. Проверьте ключ и доступность сервиса.',
+      };
+    }
+
+    if (error.message.includes('VERCEL_BLOB')) {
+      return {
+        status: 503,
+        message:
+          'Хранилище Vercel Blob недоступно. Проверьте VERCEL_BLOB_TOKEN и настройки доступа.',
+      };
+    }
+
+    if (error.message.includes('Не удалось сохранить файл оценки')) {
+      return {
+        status: 503,
+        message: 'Не удалось сохранить результат оценки. Проверьте настройки хранилища.',
+      };
+    }
+
+    if (error.message.includes('Не удалось загрузить изображение макета')) {
+      return {
+        status: 400,
+        message: error.message,
+      };
+    }
+
+    return {
+      status: 500,
+      message: error.message || 'Ошибка при обработке оценки',
+    };
+  }
+
+  return {
+    status: 500,
+    message: 'Ошибка при обработке оценки',
+  };
+}
+
+export async function POST(request: Request) {
   let payload: EvaluationRequest;
   try {
     const json = await request.json();
     payload = requestSchema.parse(json);
     payload = {
-      ...payload,
       projectTitle: payload.projectTitle.trim(),
-      projectBrief: payload.projectBrief.trim(),
+      layoutImageUrl: payload.layoutImageUrl,
     };
   } catch (error) {
     console.error(error);
@@ -51,22 +88,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const validation = await validateInputs(payload);
-
-    if (!validation.jsonMatchesImage) {
-      return NextResponse.json({ message: 'JSON не соответствует изображению' }, { status: 409 });
-    }
-
-    if (!confirmGoal && validation.needsBusinessGoalConfirmation) {
-      return NextResponse.json(
-        {
-          message: 'Требуется подтвердить бизнес-задачу',
-          businessGoal: validation.businessGoal,
-        },
-        { status: 428 },
-      );
-    }
-
     const steps = await runEvaluation(payload);
     const summary = buildSummary(steps, payload);
     const evaluation: EvaluationResult = {
@@ -80,6 +101,7 @@ export async function POST(request: Request) {
     return NextResponse.json(evaluation, { status: 201 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ message: 'Ошибка при обработке оценки' }, { status: 500 });
+    const { status, message } = mapErrorToResponse(error);
+    return NextResponse.json({ message }, { status });
   }
 }
